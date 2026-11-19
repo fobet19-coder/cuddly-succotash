@@ -1,0 +1,330 @@
+local KernelUI = loadstring(game:HttpGet(
+    "https://raw.githubusercontent.com/Gustavolp08/KernelUI/main/KernelUI.lua"
+))()
+
+local Window = KernelUI:CreateWindow({
+    Title = "PvP Tree",
+    SubTitle = "By eldb0305",
+    Theme = "Dark+",
+    ToggleKey = Enum.KeyCode.RightShift,
+    Watermark = false,
+    Size = UDim2.fromOffset(580, 420)
+})
+
+local Tab1 = Window:AddTab("Player")
+local Tab2 = Window:AddTab("Aimbot")
+local Tab3 = Window:AddTab("Visual")
+local Tab4 = Window:AddTab("Car")
+local Tab5 = Window:AddTab("Misc")
+
+local Section1 = Tab1:AddSection("MOVIMIENTO")
+local Section2 = Tab2:AddSection("AIMBOT")
+local Section3 = Tab3:AddSection("VISUAL")
+local Section4 = Tab4:AddSection("CAR")
+local Section5 = Tab5:AddSection("MISC")
+
+Section1:AddToggle({
+    Name = "SPEED",
+    Default = false,
+    Callback = function(value)
+        print("SPEED:", value)
+    end
+})
+
+Section1:AddToggle({
+    Name = "JUMP POWER",
+    Default = false,
+    Callback = function(value)
+        print("JUMP POWER:", value)
+    end
+})
+
+local silentAimEnabled = false
+local t9 = t9 or { silentAimEnabled = false, aimTarget = nil, silentAimAimPart = "torso" }
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
+local u214
+
+if Remotes then
+    pcall(function()
+        local Send = Remotes:WaitForChild("Send")
+        u214 = hookfunction(Send.FireServer, function(p28, ...)
+            if p28 ~= Send then
+                return u214(p28, ...)
+            end
+
+            local t14 = { ... }
+
+            if silentAimEnabled and t14[2] == "shoot_gun" and t9.aimTarget and t9.aimTarget.Character then
+                local UpperTorso
+
+                if t9.silentAimAimPart == "torso" then
+                    UpperTorso = t9.aimTarget.Character:FindFirstChild("UpperTorso") or t9.aimTarget.Character:FindFirstChild("Torso")
+                else
+                    UpperTorso = t9.aimTarget.Character:FindFirstChild("Head")
+                end
+
+                local HumanoidRootPart2 = t9.aimTarget.Character:FindFirstChild("HumanoidRootPart")
+                local Humanoid2 = t9.aimTarget.Character:FindFirstChild("Humanoid")
+
+                if UpperTorso and HumanoidRootPart2 and Humanoid2 then
+                    local v219 = v174(UpperTorso, HumanoidRootPart2)
+                    local Head = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Head")
+                    local Position = Head and Head.Position or CurrentCamera.CFrame.Position
+
+                    if (function()
+                        if not Character then
+                            return false
+                        end
+
+                        for _, child in ipairs(Character:GetChildren()) do
+                            if child:IsA("Tool") then
+                                local attribute = child:GetAttribute("AmmoType")
+                                if attribute == "shotgun" or attribute == "shootgun" then
+                                    return true
+                                end
+                            end
+                        end
+                        return false
+                    end)() then
+                        t14[4] = CFrame.new(Position, v219)
+                        local t15 = {}
+                        for i = 1, 6 do
+                            local vector3 = Vector3.new(math.random(-2, 2) * 0.03, math.random(-2, 2) * 0.03, math.random(-2, 2) * 0.03)
+                            table.insert(t15, { {
+                                Instance = UpperTorso,
+                                Normal = Vector3.new(0, 1, 0),
+                                Position = v219 + vector3
+                            } })
+                        end
+                        t14[5] = t15
+                    else
+                        t14[4] = v188(Position, v219) and CFrame.new(math.huge, math.huge, math.huge) or CFrame.new(Position, v219)
+                        t14[5] = { { {
+                            Instance = UpperTorso,
+                            Normal = Vector3.new(0, 1, 0),
+                            Position = v219
+                        } } }
+                    end
+
+                    pcall(function()
+                        local Part = Instance_.new("Part")
+                        Part.Anchored = true
+                        Part.CanCollide = false
+                        Part.Size = Vector3.new(0.06, 0.06, (v219 - Position).Magnitude)
+                        Part.CFrame = CFrame.new(Position, v219) * CFrame.new(0, 0, -Part.Size.Z / 2)
+                        Part.Material = Enum.Material.Neon
+                        Part.Transparency = 0.35
+                        Part.Color = Color3.fromRGB(255, 0, 0)
+                        Part.Parent = Workspace
+                        Debris:AddItem(Part, 4)
+                    end)
+                end
+            end
+
+            return u214(p28, unpack(t14))
+        end)
+    end)
+end
+
+Section2:AddToggle({
+    Name = "SILENT AIM",
+    Default = false,
+    Callback = function(value)
+        silentAimEnabled = value
+        if t9 then t9.silentAimEnabled = value end
+        print("SILENT AIM:", value)
+    end
+})
+
+local WeaponESPEnabled = false
+local ItemESPEnabled = false
+local WeaponBillboardCache = {}
+local RegisteredWeaponDB = {}
+
+local RarityColors = {
+    Common = Color3.fromRGB(255, 255, 255),
+    Uncommon = Color3.fromRGB(99, 255, 52),
+    Rare = Color3.fromRGB(51, 170, 255),
+    Epic = Color3.fromRGB(237, 44, 255),
+    Legendary = Color3.fromRGB(255, 150, 0),
+    Omega = Color3.fromRGB(255, 20, 51)
+}
+
+local PlayerGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+local ItemsFolder = ReplicatedStorage:WaitForChild("Items", 10)
+
+local function registerFolderItems(folder)
+    if not folder then return end
+    for _, item in ipairs(folder:GetChildren()) do
+        if item:IsA("Tool") then
+            local handle = item:FindFirstChild("Handle")
+            local dName = item:GetAttribute("DisplayName") or item.Name
+            local iId = item:GetAttribute("ItemId") or item:GetAttribute("Id") or item.Name
+            local rarity = item:GetAttribute("RarityName") or "Common"
+            local img = item:GetAttribute("ImageId") or ""
+            local key
+            
+            if handle then
+                local mesh = handle:FindFirstChildOfClass("SpecialMesh")
+                if mesh and mesh.MeshId ~= "" then
+                    key = mesh.MeshId .. (mesh.TextureId or "") .. "_RARITY_" .. rarity
+                elseif handle:IsA("MeshPart") and handle.MeshId ~= "" then
+                    key = handle.MeshId .. (handle.TextureID or "") .. "_RARITY_" .. rarity
+                end
+            end
+            
+            if not key and iId ~= "" and iId ~= item.Name then 
+                key = "ITEMID_" .. iId .. "_RARITY_" .. rarity 
+            end
+            if not key then 
+                key = "NAME_" .. dName .. "_" .. item.Name .. "_RARITY_" .. rarity 
+            end
+            
+            RegisteredWeaponDB[key] = {Name = dName, Rarity = rarity, ImageId = img, ToolName = item.Name}
+        end
+    end
+end
+
+if ItemsFolder then
+    for _, sub in ipairs({"gun", "melee", "throwable", "consumable", "farming", "misc", "rod", "fish"}) do
+        local subFolder = ItemsFolder:FindFirstChild(sub)
+        if subFolder then
+            registerFolderItems(subFolder)
+        end
+    end
+end
+
+local function getWeaponData(tool)
+    if not tool or not tool:IsA("Tool") then return nil end
+    local handle = tool:FindFirstChild("Handle")
+    local dName = tool:GetAttribute("DisplayName") or tool.Name
+    local iId = tool:GetAttribute("ItemId") or tool:GetAttribute("Id") or tool.Name
+    local rarity = tool:GetAttribute("RarityName") or "Common"
+    local key
+    
+    if handle then
+        local mesh = handle:FindFirstChildOfClass("SpecialMesh")
+        if mesh and mesh.MeshId ~= "" then 
+            key = mesh.MeshId .. (mesh.TextureId or "") .. "_RARITY_" .. rarity
+        elseif handle:IsA("MeshPart") and handle.MeshId ~= "" then 
+            key = handle.MeshId .. (handle.TextureID or "") .. "_RARITY_" .. rarity 
+        end
+    end
+    
+    if not key and iId ~= "" and iId ~= tool.Name then 
+        key = "ITEMID_" .. iId .. "_RARITY_" .. rarity 
+    end
+    if not key then 
+        key = "NAME_" .. dName .. "_" .. tool.Name .. "_RARITY_" .. rarity 
+    end
+    
+    return RegisteredWeaponDB[key]
+end
+
+task.defer(function()
+    for _, guiObject in ipairs(PlayerGui:GetChildren()) do
+        if guiObject:IsA("BillboardGui") and guiObject.Name:match("^WeaponESP_") then
+            pcall(function() guiObject:Destroy() end)
+        end
+    end
+end)
+
+Section3:AddToggle({
+    Name = "NAMES",
+    Default = false,
+    Callback = function(value)
+        print("NAMES:", value)
+    end
+})
+
+Section3:AddToggle({
+    Name = "GUNS",
+    Default = false,
+    Callback = function(value)
+        print("GUNS:", value)
+    end
+})
+
+Section3:AddToggle({
+    Name = "HEALTH BAR",
+    Default = false,
+    Callback = function(value)
+        print("HEALTH BAR:", value)
+    end
+})
+
+Section3:AddToggle({
+    Name = "DISCARDED ITEMS",
+    Default = false,
+    Callback = function(value)
+        print("DISCARDED ITEMS:", value)
+    end
+})
+
+Section3:AddToggle({
+    Name = "ESP INVENTORY",
+    Default = false,
+    Callback = function(value)
+        WeaponESPEnabled = value
+        ItemESPEnabled = value
+        print("ESP INVENTORY:", value)
+    end
+})
+
+Section4:AddToggle({
+    Name = "CAR SPEED MODIFICATION",
+    Default = false,
+    Callback = function(value)
+        print("CAR SPEED MODIFICATION:", value)
+    end
+})
+
+local enabledSkip = false
+
+Section5:AddToggle({
+    Name = "CRATE SKIP",
+    Default = false,
+    Callback = function(value)
+        enabledSkip = value
+    end
+})
+
+task.spawn(function()
+    while true do
+        if enabledSkip then
+            pcall(function()
+                local modules = ReplicatedStorage:FindFirstChild("Modules")
+
+                local crateMod = modules
+                    and modules:FindFirstChild("Game")
+                    and modules.Game:FindFirstChild("CrateSystem")
+                    and modules.Game.CrateSystem:FindFirstChild("Crate")
+
+                if crateMod then
+                    local CrateController = require(crateMod)
+
+                    if CrateController
+                        and CrateController.class
+                        and CrateController.class.objects then
+
+                        for _, crate in pairs(CrateController.class.objects) do
+                            if crate.states and crate.states.open then
+                                crate.states.open.set(true)
+                            end
+                        end
+
+                        if CrateController.skipping
+                            and CrateController.skipping.set then
+                            CrateController.skipping.set(true)
+                        end
+                    end
+                end
+            end)
+
+            task.wait(0.1)
+        else
+            task.wait(1)
+        end
+    end
+end)
